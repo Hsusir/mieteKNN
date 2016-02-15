@@ -1,0 +1,94 @@
+---
+title: "幕尼黑的房屋租金-KNN"
+author: "許sir"
+
+---
+
+### **資料說明**
+#### 1.本單元主題僅在介紹判別分析、集群分析
+
+#### 2.miete是1994年幕尼黑的房屋租金資訊
+#### - 共1082筆樣本，17個變數
+#### - 我們會使用部份變數
+
+---
+### **[設定所需的函式庫(libraries)以及載入資料]**
+```{r message=FALSE, warning=FALSE, results='hide'}
+setwd("/home/m600/Working Area/Rdata Practice/Customer Course/miete")
+
+#install.packages("kknn")
+library(kknn)
+data(miete)
+```
+
+### **[Part 1].Data-ETL**
+
+#### **1-1.取得資料集的概述**
+```{r message=FALSE, warning=FALSE}
+head(miete)
+dim(miete)
+summary(miete)
+```
+
+#### **1-2.取出我們需要用的變數**
+```{r message=FALSE, warning=FALSE}
+library(sampling)
+
+n=round(2/3*nrow(miete)/5) #依照資料的2/3比例，取出每一等級中應抽出的樣本數
+n
+
+sub_train=strata(miete,stratanames="nmkat",size=rep(n,5),method="srswor")#以nmkat變數做為五個等及畫分
+
+head(sub_train)
+data_train=getdata(miete[,c(-1,-3,-12)],sub_train$ID_unit)  #訓練集，剃除1.3.12變數?
+data_test=getdata(miete[,c(-1,-3,-12)],-sub_train$ID_unit) #測試集，剃除1.3.12變數
+
+dim(data_train);dim(data_test)
+head(data_test)
+```
+
+### **[Part 2].K-near neighbor Method**
+```{r message=FALSE, warning=FALSE}
+#install.packages("class")
+library(class)
+```
+
+#### **2-1.訓練集的屬性**
+```{r message=FALSE, warning=FALSE}
+fit_pre_knn=knn(data_train[,-12],data_test[,-12],cl=data_train[,12])
+fit_pre_knn
+table(data_test$nmkat,fit_pre_knn) #產生混淆矩陣
+error_knn=sum(as.numeric(as.numeric(fit_pre_knn)!=as.numeric(data_test$nmkat)))/nrow(data_test)
+error_knn #計算錯誤率
+```
+
+#### **2-2.找出最適合的K值**
+```{r message=FALSE, warning=FALSE}
+error_knn=rep(0,20) #從0到20
+for(i in 1:20)
+{ fit_pre_knn=knn(data_train[,-12],data_test[,-12],cl=data_train[,12],k=i)
+  error_knn[i]=sum(as.numeric(as.numeric(fit_pre_knn)!=as.numeric(data_test$nmkat)))/nrow(data_test)}
+error_knn
+plot(error_knn,type="l",xlab="K")
+```
+
+#### - 當K=3時錯誤率最小
+
+
+#### **2-3.如果有加權時，K應該是多少**
+```{r message=FALSE, warning=FALSE}
+#install.packages("kknn")
+library(kknn)
+
+fit_pre_kknn=kknn(nmkat~.,data_train,data_test[,-12])
+fit_pre_kknn
+summary(fit_pre_kknn)
+fit=fitted(fit_pre_kknn)
+fit
+
+table(data_test$nmkat,fit)
+error_kknn=sum(as.numeric(as.numeric(fit)!=as.numeric(data_test$nmkat)))/nrow(data_test)
+error_kknn
+
+```
+
